@@ -1,0 +1,241 @@
+// ============================================================
+// LearnHub — Prisma Schema
+// Provider: SQLite (local dev). Swap to postgresql for prod.
+// Generator output: src/generated/prisma (Prisma 7 explicit path)
+// Connection URL is in prisma.config.ts, NOT here (Prisma 7 change).
+//
+// Money: pricePaise stored in paise (1 INR = 100 paise). 0 = free.
+// ============================================================
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "sqlite"
+}
+
+// ─── Enums ────────────────────────────────────────────────────────────────────
+// SQLite stores enums as strings; Prisma handles the mapping transparently.
+
+enum Role {
+  STUDENT
+  INSTRUCTOR
+}
+
+enum Level {
+  BEGINNER
+  INTERMEDIATE
+  ADVANCED
+}
+
+// ─── User ─────────────────────────────────────────────────────────────────────
+
+model User {
+  id           String   @id @default(cuid())
+  email        String   @unique
+  passwordHash String
+  name         String
+  role         Role     @default(STUDENT)
+  avatarUrl    String?
+  bio          String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  // Relations
+  coursesTaught Course[]        // as INSTRUCTOR
+  enrollments   Enrollment[]
+  progress      LessonProgress[]
+  quizAttempts  QuizAttempt[]
+
+  @@index([email])
+  @@index([role])
+  @@map("users")
+}
+
+// ─── Course ───────────────────────────────────────────────────────────────────
+
+model Course {
+  id           String   @id @default(cuid())
+  title        String
+  slug         String   @unique
+  description  String
+  category     String
+  level        Level    @default(BEGINNER)
+  pricePaise   Int      @default(0)    // 0 = free; stored in paise
+  thumbnailUrl String?
+  instructorId String
+  published    Boolean  @default(false)
+  ratingAvg    Float    @default(0.0)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  // Relations
+  instructor  User         @relation(fields: [instructorId], references: [id], onDelete: Restrict)
+  modules     Module[]
+  enrollments Enrollment[]
+  quiz        Quiz?
+
+  @@index([slug])
+  @@index([instructorId])
+  @@index([published])
+  @@index([category])
+  @@index([level])
+  @@index([published, category])
+  @@index([published, level])
+  @@index([published, pricePaise])
+  @@index([createdAt])
+  @@map("courses")
+}
+
+// ─── Module ───────────────────────────────────────────────────────────────────
+
+model Module {
+  id       String @id @default(cuid())
+  courseId String
+  title    String
+  position Int    // 1-based; lower = earlier in curriculum
+
+  // Relations
+  course  Course   @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  lessons Lesson[]
+
+  @@index([courseId])
+  @@index([courseId, position])
+  @@map("modules")
+}
+
+// ─── Lesson ───────────────────────────────────────────────────────────────────
+
+model Lesson {
+  id          String  @id @default(cuid())
+  moduleId    String
+  title       String
+  videoUrl    String?
+  content     String? // rich text notes / transcript
+  durationSec Int     @default(0) // video duration in seconds
+  position    Int     // 1-based; lower = earlier within module
+
+  // Relations
+  module   Module           @relation(fields: [moduleId], references: [id], onDelete: Cascade)
+  progress LessonProgress[]
+
+  @@index([moduleId])
+  @@index([moduleId, position])
+  @@map("lessons")
+}
+
+// ─── Enrollment ───────────────────────────────────────────────────────────────
+// One row per student per course. Unique constraint prevents double-enrollment.
+
+model Enrollment {
+  id         String   @id @default(cuid())
+  userId     String
+  courseId   String
+  enrolledAt DateTime @default(now())
+
+  // Relations
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  course Course @relation(fields: [courseId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, courseId])
+  @@index([userId])
+  @@index([courseId])
+  @@index([enrolledAt])
+  @@map("enrollments")
+}
+
+// ─── LessonProgress ───────────────────────────────────────────────────────────
+// Tracks per-user per-lesson completion. Unique constraint = one record per pair.
+
+model LessonProgress {
+  id          String    @id @default(cuid())
+  userId      String
+  lessonId    String
+  completed   Boolean   @default(false)
+  completedAt DateTime?
+
+  // Relations
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  lesson Lesson @relation(fields: [lessonId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, lessonId])
+  @@index([userId])
+  @@index([lessonId])
+  @@index([userId, completed])
+  @@map("lesson_progress")
+}
+
+// ─── Quiz ─────────────────────────────────────────────────────────────────────
+// Exactly one quiz per course (unique courseId). passingScore is an integer %.
+
+model Quiz {
+  id           String @id @default(cuid())
+  courseId     String @unique // enforces 1 quiz per course
+  title        String
+  passingScore Int    @default(70) // percent (0–100)
+
+  // Relations
+  course    Course        @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  questions Question[]
+  attempts  QuizAttempt[]
+
+  @@index([courseId])
+  @@map("quizzes")
+}
+
+// ─── Question ─────────────────────────────────────────────────────────────────
+
+model Question {
+  id       String @id @default(cuid())
+  quizId   String
+  text     String
+  position Int    // 1-based display order
+
+  // Relations
+  quiz    Quiz     @relation(fields: [quizId], references: [id], onDelete: Cascade)
+  options Option[]
+
+  @@index([quizId])
+  @@index([quizId, position])
+  @@map("questions")
+}
+
+// ─── Option ───────────────────────────────────────────────────────────────────
+// Each question has N options; exactly one should have isCorrect = true.
+
+model Option {
+  id         String  @id @default(cuid())
+  questionId String
+  text       String
+  isCorrect  Boolean @default(false)
+
+  // Relations
+  question Question @relation(fields: [questionId], references: [id], onDelete: Cascade)
+
+  @@index([questionId])
+  @@map("options")
+}
+
+// ─── QuizAttempt ──────────────────────────────────────────────────────────────
+// Students may retake quizzes; no unique constraint — multiple attempts allowed.
+
+model QuizAttempt {
+  id      String   @id @default(cuid())
+  userId  String
+  quizId  String
+  score   Int      // percent (0–100)
+  passed  Boolean
+  takenAt DateTime @default(now())
+
+  // Relations
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  quiz Quiz @relation(fields: [quizId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([quizId])
+  @@index([userId, quizId])
+  @@index([takenAt])
+  @@map("quiz_attempts")
+}
