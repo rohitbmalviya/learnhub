@@ -19,24 +19,13 @@
 // ============================================================
 
 import 'dotenv/config'
-import path from 'node:path'
 import bcrypt from 'bcryptjs'
-import { PrismaLibSql } from '@prisma/adapter-libsql'
+import { PrismaPg } from '@prisma/adapter-pg'
 import { PrismaClient } from '../src/generated/prisma/client'
 
 // ─── Bootstrap DB (same URL logic as src/lib/db.ts) ──────────────────────────
 
-function buildLibSQLUrl(): string {
-  const raw = process.env.DATABASE_URL ?? 'file:./prisma/dev.db'
-  if (!raw.startsWith('file:')) return raw
-  const filePart = raw.slice('file:'.length)
-  const absPath = path.isAbsolute(filePart)
-    ? filePart
-    : path.resolve(process.cwd(), filePart)
-  return `file:${absPath}`
-}
-
-const adapter = new PrismaLibSql({ url: buildLibSQLUrl() })
+const adapter = new PrismaPg({ connectionString: process.env.DATABASE_URL })
 const prisma = new PrismaClient({ adapter })
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────

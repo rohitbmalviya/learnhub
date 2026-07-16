@@ -21,7 +21,7 @@ A full-stack learning platform: students enroll in courses, watch video lessons,
 |---|---|
 | Framework | Next.js 16 (App Router) · React 19 · TypeScript 5 |
 | UI | Tailwind CSS v4 · shadcn/ui · Recharts |
-| Database | Prisma 7 ORM · SQLite via libSQL (swappable to PostgreSQL) |
+| Database | Prisma 7 ORM · PostgreSQL (Neon) via `@prisma/adapter-pg` |
 | Auth | Custom JWT (`jose`) + `bcryptjs` — route protection in `src/proxy.ts` |
 
 ## 📋 Prerequisites
@@ -63,13 +63,13 @@ cp .env.example .env
 
 | Variable | Required | Description |
 |---|---|---|
-| `DATABASE_URL` | ✅ | Keep the default `file:./prisma/dev.db` for local SQLite |
+| `DATABASE_URL` | ✅ | Your Neon PostgreSQL connection string (pooled `-pooler` host for Vercel) |
 | `AUTH_SECRET` | ✅ | JWT signing secret — generate one with `openssl rand -base64 32` |
 
 **5. Create the database and load demo data**
 
 ```bash
-pnpm db:migrate   # applies Prisma migrations (creates prisma/dev.db)
+pnpm db:migrate   # creates the tables in your Neon database
 pnpm db:seed      # loads 4 users, 6 courses with modules/lessons/quizzes, enrollments & progress
 ```
 
@@ -157,7 +157,7 @@ Run `pnpm db:generate`, then restart the dev server.
 
 Deploys cleanly to **Vercel**:
 
-1. Switch the Prisma datasource to PostgreSQL (Neon/Supabase) — SQLite files don't persist on serverless
+1. Set `DATABASE_URL` to your Neon **pooled** connection string (the `-pooler` host)
 2. Set env vars: `DATABASE_URL` and `AUTH_SECRET`
 3. Update the placeholder domain (`learnhub.example.com`) in `src/app/layout.tsx`, `robots.ts`, and `sitemap.ts` to your real URL, then submit the sitemap in [Google Search Console](https://search.google.com/search-console)
 
