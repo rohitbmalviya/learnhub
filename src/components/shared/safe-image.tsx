@@ -13,6 +13,7 @@ interface SafeImageProps {
   className?: string;
   sizes?: string;
   priority?: boolean;
+  unoptimized?: boolean;
 }
 
 export function SafeImage({
@@ -24,8 +25,11 @@ export function SafeImage({
   className,
   sizes,
   priority,
+  unoptimized,
 }: SafeImageProps) {
   const [errored, setErrored] = useState(false);
+  const isPicsum = typeof src === "string" && src.includes("picsum.photos");
+  const isUnoptimized = unoptimized ?? isPicsum;
 
   const initials = alt
     .split(" ")
@@ -59,6 +63,7 @@ export function SafeImage({
         className={className}
         onError={() => setErrored(true)}
         priority={priority}
+        unoptimized={isUnoptimized}
       />
     );
   }
@@ -72,6 +77,7 @@ export function SafeImage({
       className={className}
       onError={() => setErrored(true)}
       priority={priority}
+      unoptimized={isUnoptimized}
     />
   );
 }
