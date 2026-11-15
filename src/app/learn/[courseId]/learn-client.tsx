@@ -275,7 +275,7 @@ export function LearnClient({ course, initialLesson }: LearnClientProps) {
                   key={activeLesson.id}
                   controls
                   className="w-full h-full"
-                  poster={`https://picsum.photos/seed/${activeLesson.id}/800/450`}
+                  poster="https://images.unsplash.com/photo-1516321318423-f06f85e504b3?w=800&q=80"
                 >
                   <source src={activeLesson.videoUrl} />
                   Your browser does not support the video tag.
